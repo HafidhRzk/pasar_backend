@@ -34,7 +34,7 @@ exports.register = async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.TOKEN_KEY);
 
     res.status(200).send({
-      status: "success...",
+      status: "Success",
       data: {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
@@ -43,7 +43,6 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log(error);
     res.status(500).send({
       status: "failed",
       message: "Server Error",
