@@ -124,7 +124,7 @@ exports.checkAuth = async (req, res) => {
     }
 
     res.send({
-      status: "success...",
+      status: "Success",
       data: {
         user: {
           id: dataUser.id,
