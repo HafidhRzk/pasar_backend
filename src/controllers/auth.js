@@ -2,143 +2,129 @@ const { user } = require("../../models");
 const Joi = require("joi");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const CustomError = require("../middlewares/customError");
 
-exports.register = async (req, res) => {
-  const schema = Joi.object({
-    firstName: Joi.string().min(3).required(),
-    lastName: Joi.string().min(3).required(),
-    email: Joi.string().email().min(6).required(),
-    password: Joi.string().min(6).required(),
-  });
 
-  const { error } = schema.validate(req.body);
-
-  if (error)
-    return res.status(400).send({
-      error: {
-        message: error.details[0].message,
-      },
-    });
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(req.body.password, salt);
-
-    const newUser = await user.create({
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      email: req.body.email,
-      password: hashedPassword,
-    });
-
-    const token = jwt.sign({ id: user.id }, process.env.TOKEN_KEY);
-
-    res.status(200).send({
-      status: "Success",
-      data: {
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(500).send({
-      status: "failed",
-      message: "Server Error",
-    });
-  }
-};
-
-exports.login = async (req, res) => {
-  const schema = Joi.object({
-    email: Joi.string().email().min(6).required(),
-    password: Joi.string().min(6).required(),
-  });
-
-  const { error } = schema.validate(req.body);
-
-  if (error)
-    return res.status(400).send({
-      error: {
-        message: error.details[0].message,
-      },
-    });
-
-  try {
-    const userExist = await user.findOne({
-      where: {
-        email: req.body.email,
-      },
-      attributes: {
-        exclude: ["createdAt", "updatedAt"],
-      },
-    });
-    const isValid = await bcrypt.compare(req.body.password, userExist.password);
-
-    if (!isValid) {
-      return res.status(400).send({
-        status: "failed",
-        message: "credential is invalid",
+class Auth {
+  static async register(req, res, next) {
+    try {
+      const schema = Joi.object({
+        firstName: Joi.string().min(3).required(),
+        lastName: Joi.string().min(3).required(),
+        email: Joi.string().email().min(6).required(),
+        password: Joi.string().min(6).required(),
       });
-    }
 
-    const token = jwt.sign({ id: userExist.id }, process.env.TOKEN_KEY);
+      const options = {
+        abortEarly: true,
+        stripUnknown: true,
+      };
 
-    res.status(200).send({
-      status: "success...",
-      data: {
-        id: userExist.id,
-        firstName: userExist.firstName,
-        lastName: userExist.lastName,
-        email: userExist.email,
-        token,
-      },
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send({
-      status: "failed",
-      message: "Server Error",
-    });
-  }
-};
+      const { error, value } = schema.validate(req.body, options);
 
-exports.checkAuth = async (req, res) => {
-  try {
-    const id = req.user.id;
+      if (error) throw new CustomError(error.details[0].message, 400);
 
-    const dataUser = await user.findOne({
-      where: {
-        id,
-      },
-      attributes: {
-        exclude: ["createdAt", "updatedAt", "password"],
-      },
-    });
+      let condition = {
+        where: {
+          email: value.email
+        }
+      }
 
-    if (!dataUser) {
-      return res.status(404).send({
-        status: "failed",
+      const userData = await user.getOne(condition)
+
+      if (userData) {
+        throw { httpCode: 400, message: "Your Account Is Already Registered!" };
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(value.password, salt);
+
+      await user.create({
+        ...value,
+        password: hashedPassword,
       });
-    }
 
-    res.send({
-      status: "Success",
-      data: {
-        user: {
-          id: dataUser.id,
-          firstName: dataUser.firstName,
-          lastName: dataUser.lastName,
-          email: dataUser.email,
-        },
-      },
-    });
-  } catch (error) {
-    console.log(error);
-    res.status({
-      status: "failed",
-      message: "Server Error",
-    });
-  }
-};
+      res.status(200).json({
+        message: "User Registered Successfully",
+      });
+    } catch (error) {
+      next(error)
+    }
+  };
+
+  static async login(req, res, next) {
+    try {
+      const schema = Joi.object({
+        email: Joi.string().email().min(6).required(),
+        password: Joi.string().min(6).required(),
+      });
+
+      const options = {
+        abortEarly: true,
+        stripUnknown: true,
+      };
+
+      const { error, value } = schema.validate(req.body, options);
+
+      if (error) throw new CustomError(error.details[0].message, 401);
+
+      let condition = {
+        where: {
+          email: value.email
+        }
+      }
+
+      const userData = await user.getOne(condition)
+
+      if (!userData) {
+        throw { httpCode: 400, message: "Password atau Email Salah" };
+      }
+
+      const isValid = await bcrypt.compare(value.password, userData.password);
+
+      if (!isValid) {
+        throw { httpCode: 400, message: "Password atau Email Salah" };
+      }
+
+      const token = jwt.sign({ id: userData.id }, process.env.TOKEN_KEY);
+
+      res.status(200).json({
+        message: "Login Success",
+        data: {
+          token
+        }
+      });
+    } catch (error) {
+      next(error)
+    }
+  };
+
+  static async checkAuth(req, res, next) {
+    try {
+      const id = req.user.id;
+
+      let condition = {
+        where: {
+          id,
+        }
+      }
+
+      const userData = await user.getOne(condition)
+
+      if (!userData) {
+        throw { httpCode: 400, message: "Unauthorized!" };
+      }
+
+      const { password, ...payload } = userData
+
+      res.status(200).json({
+        message: "Authorized!",
+        data: payload
+      });
+    } catch (error) {
+      next(error)
+    }
+  };
+}
+
+module.exports = Auth;

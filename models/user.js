@@ -23,5 +23,19 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'user',
     paranoid: true,
   });
+
+  user.getOne = async (condition) => {
+    return await user.findOne({
+      ...condition,
+      attributes: {
+        exclude: [
+          'createdAt', 'updatedAt', 'deletedAt'
+        ]
+      },
+      raw: true
+    })
+  }
+
+
   return user;
 };

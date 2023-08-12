@@ -1,4 +1,4 @@
 .env
 db.txt
-node_modules
+/node_modules
 .gitignore
