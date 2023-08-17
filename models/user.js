@@ -1,6 +1,6 @@
 'use strict';
 const {
-  Model
+  Model,
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class user extends Model {
@@ -11,31 +11,53 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      user.hasOne(models.profile, {
+        as: "profile",
+        foreignKey: {
+          name: "userId",
+        },
+      });
+
+      user.belongsTo(models.role, {
+        as: "role",
+        foreignKey: {
+          name: "roleId",
+        },
+      });
     }
   }
   user.init({
     email: DataTypes.STRING,
-    firstName: DataTypes.STRING,
-    lastName: DataTypes.STRING,
-    password: DataTypes.STRING
+    userName: DataTypes.STRING,
+    password: DataTypes.STRING,
+    status: DataTypes.ENUM('AKTIF', 'TIDAK AKTIF'),
+    roleId: DataTypes.INTEGER,
   }, {
     sequelize,
     modelName: 'user',
-    paranoid: true,
   });
 
   user.getOne = async (condition) => {
     return await user.findOne({
       ...condition,
+      include: [
+        {
+          model: sequelize.models.role,
+          as: "role",
+          attributes: []
+        }
+      ],
       attributes: {
+        include: [
+          [sequelize.col("role.roleName"), "roleName"]
+        ],
         exclude: [
-          'createdAt', 'updatedAt', 'deletedAt'
+          'createdAt', 'updatedAt'
         ]
       },
       raw: true
     })
   }
-
 
   return user;
 };

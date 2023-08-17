@@ -9,8 +9,7 @@ class Auth {
   static async register(req, res, next) {
     try {
       const schema = Joi.object({
-        firstName: Joi.string().min(3).required(),
-        lastName: Joi.string().min(3).required(),
+        userName: Joi.string().min(3).required(),
         email: Joi.string().email().min(6).required(),
         password: Joi.string().min(6).required(),
       });
@@ -38,6 +37,10 @@ class Auth {
 
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(value.password, salt);
+      value.status = "AKTIF"
+      value.roleId = 1
+
+      console.log(value)
 
       await user.create({
         ...value,
@@ -91,7 +94,10 @@ class Auth {
       res.status(200).json({
         message: "Login Success",
         data: {
-          token
+          token,
+          userName: userData.userName,
+          email: userData.email,
+          roleName: userData.roleName
         }
       });
     } catch (error) {
