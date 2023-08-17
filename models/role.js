@@ -25,5 +25,30 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'role',
   });
+
+  role.getAll = async (condition) => {
+    return await role.findAll({
+      ...condition,
+      attributes: {
+        exclude: ['createdAt', 'updatedAt']
+      }
+    });
+  };
+
+  role.getOne = async (condition) => {
+    return await role.findOne({
+      ...condition,
+      attributes: {
+        exclude: ['createdAt', 'updatedAt']
+      }
+    });
+  };
+
+  role.countAll = async (condition) => {
+    return await role.count({
+      ...condition,
+    });
+  };
+
   return role;
 };
