@@ -73,7 +73,8 @@ class Auth {
 
       let condition = {
         where: {
-          email: value.email
+          email: value.email,
+          status: "AKTIF",
         }
       }
 
@@ -89,15 +90,22 @@ class Auth {
         throw { httpCode: 400, message: "Password atau Email Salah" };
       }
 
-      const token = jwt.sign({ id: userData.id }, process.env.TOKEN_KEY);
+      const dataToken = {
+        id: userData.id,
+        userName: userData.userName,
+        email: userData.email,
+        roleName: userData.roleName
+      }
+
+      const token = jwt.sign(dataToken, process.env.TOKEN_KEY, {
+        expiresIn: "24h",
+      });
 
       res.status(200).json({
         message: "Login Success",
         data: {
           token,
-          userName: userData.userName,
-          email: userData.email,
-          roleName: userData.roleName
+          ...dataToken,
         }
       });
     } catch (error) {
