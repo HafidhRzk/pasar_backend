@@ -40,8 +40,6 @@ class Auth {
       value.status = "AKTIF"
       value.roleId = 1
 
-      console.log(value)
-
       await user.create({
         ...value,
         password: hashedPassword,
