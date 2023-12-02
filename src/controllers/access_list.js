@@ -56,14 +56,15 @@ class AccessList {
                   url: value.url,
                   access: action,
                 });
-              } else {
-                permissionData[i].child.push({
-                  name: value.name,
-                  menu_urlId: value.id,
-                  url: value.url,
-                  access: [],
-                });
               }
+              // else {
+              //   permissionData[i].child.push({
+              //     name: value.name,
+              //     menu_urlId: value.id,
+              //     url: value.url,
+              //     access: [],
+              //   });
+              // }
             }
           }
         }
@@ -139,6 +140,56 @@ class AccessList {
       });
 
       return res.status(200).json({ message: "Access Updated!" });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAllMenu(req, res, next) {
+    try {
+      let permissionData = [];
+      let index = 0;
+
+      const dataMenu = await menu_url.findAll({
+        raw: true,
+        order: [["sort_no", "ASC"]],
+      });
+
+      if (!dataMenu.length) {
+        throw new CustomError("Data not Found!", 404);
+      }
+
+      // Buat nyari Menu URL yang menjadi parent menu
+      await dataMenu.forEach(async (menuData, i) => {
+        if (menuData.parent === 0) {
+          permissionData[index] = {
+            menu_urlId: menuData.id,
+            icon: menuData.icon,
+            menuName: menuData.name,
+            url: menuData.url,
+            isParent: true,
+            child: [],
+          };
+          index++;
+        }
+      });
+
+      if (permissionData.length > 0) {
+        for (let i = 0; i < permissionData.length; i++) {
+          for (const value of dataMenu) {
+            // Nyari api yang bisa diakses oleh suatu role
+            if (value.parent == permissionData[i].menu_urlId) {
+              permissionData[i].child.push({
+                name: value.name,
+                menu_urlId: value.id,
+                url: value.url,
+              });
+            }
+          }
+        }
+      }
+
+      return res.status(200).json({ data: permissionData });
     } catch (error) {
       next(error);
     }
