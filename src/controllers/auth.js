@@ -38,7 +38,7 @@ class Auth {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(value.password, salt);
       value.status = "AKTIF"
-      value.roleId = 1
+      value.roleId = 0
 
       await user.create({
         ...value,
@@ -80,6 +80,10 @@ class Auth {
 
       if (!userData) {
         throw { httpCode: 400, message: "Password atau Email Salah" };
+      }
+
+      if (userData.roleId === 0) {
+        throw { httpCode: 400, message: "User Belum Mendapat Akses, Silahkan Hubungi Admin" };
       }
 
       const isValid = await bcrypt.compare(value.password, userData.password);
