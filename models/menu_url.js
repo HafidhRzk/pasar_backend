@@ -21,6 +21,8 @@ module.exports = (sequelize, DataTypes) => {
     icon: DataTypes.STRING
   }, {
     sequelize,
+    paranoid: true,
+    timestamps: true,
     modelName: 'menu_url',
   });
   return menu_url;

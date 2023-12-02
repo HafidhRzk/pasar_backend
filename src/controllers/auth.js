@@ -1,4 +1,4 @@
-const { user } = require("../../models");
+const { user, menu_url, access_list } = require("../../models");
 const Joi = require("joi");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -103,11 +103,86 @@ class Auth {
         expiresIn: "24h",
       });
 
+      let permissionData = [];
+      let index = 0;
+
+      const dataMenu = await menu_url.findAll({
+        raw: true,
+        order: [["sort_no", "ASC"]],
+      });
+
+      if (!dataMenu.length) {
+        throw new CustomError("Data not Found!", 404);
+      }
+
+      // Buat nyari Menu URL yang menjadi parent menu
+      await dataMenu.forEach(async (menuData, i) => {
+        if (menuData.parent === 0) {
+          permissionData[index] = {
+            menu_urlId: menuData.id,
+            icon: menuData.icon,
+            menuName: menuData.name,
+            url: menuData.url,
+            isParent: true,
+            child: [],
+          };
+          index++;
+        } else if (!menuData.parent) {
+          permissionData[index] = {
+            menu_urlId: menuData.id,
+            icon: menuData.icon,
+            menuName: menuData.name,
+            url: menuData.url,
+            isParent: false,
+          };
+          index++;
+        }
+      })
+
+      if (permissionData.length > 0) {
+        for (let i = 0; i < permissionData.length; i++) {
+          for (const value of dataMenu) {
+            // Nyari api yang bisa diakses oleh suatu role
+            const access = await access_list.findOne({
+              where: {
+                roleId: userData.roleId,
+                menu_urlId: value.id,
+              },
+              raw: true,
+            });
+
+            if (access) {
+              access.action = JSON.parse(JSON.stringify(access.action));
+              const action = JSON.parse(access.action);
+              if (value.parent == permissionData[i].menu_urlId) {
+                permissionData[i].child.push({
+                  name: value.name,
+                  menu_urlId: value.id,
+                  url: value.url,
+                  access: action,
+                });
+              } else if (!permissionData[i].isParent) {
+                permissionData[i].access = action
+              }
+            }
+          }
+        }
+      }
+
+      permissionData = permissionData.filter((value) => {
+        if (value.isParent) {
+          return value.child.length > 0
+        } else {
+          return value.access && value.access.length > 0
+        }
+      })
+
       res.status(200).json({
         message: "Login Success",
         data: {
           token,
           ...dataToken,
+          access: permissionData,
         }
       });
     } catch (error) {

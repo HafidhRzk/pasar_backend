@@ -19,6 +19,8 @@ module.exports = (sequelize, DataTypes) => {
     action: DataTypes.STRING
   }, {
     sequelize,
+    paranoid: true,
+    timestamps: true,
     modelName: 'access_list',
   });
   return access_list;
